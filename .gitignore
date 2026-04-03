@@ -1,0 +1,112 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Poetry
+poetry.lock  # Production mein lock file commit karte hain, but ye optional hai
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+redis_data/
+chroma_data/
+
+# Logs
+logs/
+*.log
+log/
+.logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Monitoring
+monitoring/grafana/data/
+monitoring/prometheus/data/
+
+# Exports
+exports/
+*.csv
+*.xlsx
+*.json
+/temp/
+/tmp/
+
+# Scraping
+*.playwright/
+playwright/.cache/
+
+# Secrets
+*.key
+*.pem
+*.crt
+secrets/
+. secrets/
+
+# Local development
+local.py
+dev.py
+custom_*
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Backup
+*.backup
+*.bak
+backups/
+
+# OS
+Thumbs.db
+desktop.ini

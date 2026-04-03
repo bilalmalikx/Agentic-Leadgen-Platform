@@ -1,0 +1,110 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "lead-generation-system"
+version = "1.0.0"
+description = "Production-level AI-powered lead generation system"
+authors = ["Your Name <email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+# Core Web Framework
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+pydantic = "^2.4.0"
+pydantic-settings = "^2.0.0"
+
+# Database
+sqlalchemy = "^2.0.0"
+asyncpg = "^0.29.0"
+alembic = "^1.12.0"
+psycopg2-binary = "^2.9.0"
+
+# Redis & Caching
+redis = "^5.0.0"
+hiredis = "^2.2.0"
+
+# Celery (Async Tasks)
+celery = "^5.3.0"
+flower = "^2.0.0"
+
+# AI & LangChain
+langchain = "^0.1.0"
+langchain-openai = "^0.0.2"
+langchain-community = "^0.0.10"
+langgraph = "^0.0.20"
+
+# Vector Database
+chromadb = "^0.4.0"
+
+# Web Scraping
+playwright = "^1.40.0"
+beautifulsoup4 = "^4.12.0"
+lxml = "^4.9.0"
+
+# HTTP Client (with retry, fallback)
+httpx = "^0.25.0"
+tenacity = "^8.2.0"
+
+# Security
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.0"}
+python-multipart = "^0.0.6"
+
+# Validation & Guardrails
+email-validator = "^2.1.0"
+pydantic-extra-types = "^2.0.0"
+
+# Monitoring & Logging
+loguru = "^0.7.0"
+prometheus-fastapi-instrumentator = "^6.1.0"
+opentelemetry-api = "^1.21.0"
+opentelemetry-sdk = "^1.21.0"
+
+# Email
+sendgrid = "^6.10.0"
+
+# Export
+pandas = "^2.1.0"
+openpyxl = "^3.1.0"
+
+# Utils
+python-dotenv = "^1.0.0"
+pyyaml = "^6.0"
+orjson = "^3.9.0"
+
+# Development
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+pytest-cov = "^4.1.0"
+black = "^23.11.0"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+mypy = "^1.7.0"
+pre-commit = "^3.5.0"
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^8.17.0"
+watchfiles = "^0.21.0"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=app --cov-report=term-missing"
