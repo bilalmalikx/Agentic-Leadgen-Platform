@@ -6,6 +6,7 @@ Creates tables and initial data
 
 import sys
 from pathlib import Path
+import os
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -59,7 +60,7 @@ def create_default_user():
         # Create admin user
         admin = User(
             email="admin@leadgen.com",
-            password_hash=get_password_hash("Admin@123"),
+            password_hash=get_password_hash(os.getenv("ADMIN_PASSWORD", "CHANGE_ME_NOW")),
             full_name="System Administrator",
             role=UserRole.ADMIN,
             status=UserStatus.ACTIVE,

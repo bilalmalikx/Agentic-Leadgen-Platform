@@ -6,9 +6,9 @@ services:
     image: postgres:15-alpine
     container_name: leadgen-postgres
     environment:
-      POSTGRES_USER: leadgen
-      POSTGRES_PASSWORD: leadgen123
-      POSTGRES_DB: leadgen
+      POSTGRES_USER: ${DB_USER:-leadgen}
+      POSTGRES_PASSWORD: ${DB_PASSWORD} 
+      POSTGRES_DB:  postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
