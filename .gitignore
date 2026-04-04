@@ -7,6 +7,8 @@ __pycache__/
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 build/
 develop-eggs/
 dist/
@@ -24,7 +26,7 @@ wheels/
 *.egg
 
 # Poetry
-poetry.lock  # Production mein lock file commit karte hain, but ye optional hai
+poetry.lock
 
 # Environment
 .env
@@ -60,7 +62,6 @@ log/
 htmlcov/
 .tox/
 .mypy_cache/
-.mypy_cache/
 .ruff_cache/
 
 # Docker
@@ -88,7 +89,7 @@ playwright/.cache/
 *.pem
 *.crt
 secrets/
-. secrets/
+.secrets/
 
 # Local development
 local.py
