@@ -1,77 +1,226 @@
-# System Design Document
+# 🚀 Lead Generation System – System Design Document
 
-## Lead Generation System - Architecture Overview
+---
 
-### 1. System Overview
+## 🧩 1. System Overview
 
-The Lead Generation System is an AI-powered platform that automatically discovers, enriches, scores, and qualifies leads from multiple sources.
+The **Lead Generation System** is an AI-powered platform designed to:
 
+* Automatically discover leads from multiple sources
+* Enrich data using LLMs
+* Score and qualify leads intelligently
+* Remove duplicates using vector similarity
 
-### 3. Component Details
+---
 
-#### 3.1 API Layer (FastAPI)
+## 🏗️ 2. High-Level Architecture
 
-- **Purpose**: Handle HTTP requests, authentication, rate limiting
-- **Key Features**:
-  - Async request handling
-  - Automatic OpenAPI documentation
-  - Dependency injection
-  - Middleware support (CORS, logging, auth)
+```text
+                ┌───────────────────────────────┐
+                │         Client Layer          │
+                │ Web | API | MCP | Webhooks    │
+                └──────────────┬────────────────┘
+                               │
+                               ▼
+                ┌───────────────────────────────┐
+                │     Load Balancer (Nginx)     │
+                └──────────────┬────────────────┘
+                               │
+                               ▼
+                ┌───────────────────────────────┐
+                │      API Gateway (FastAPI)    │
+                └──────────────┬────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        ▼                      ▼                      ▼
+┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+│ Service Layer │     │ Worker Layer  │     │ Cache Layer   │
+│               │     │ (Celery)      │     │ (Redis)       │
+└──────┬────────┘     └──────┬────────┘     └───────────────┘
+       │                     │
+       ▼                     ▼
+        ┌────────────────────────────────────────────┐
+        │               Data Layer                   │
+        │ PostgreSQL | ChromaDB | Redis | S3         │
+        └────────────────────────────────────────────┘
+```
 
-#### 3.2 Agent Layer (LangGraph)
+---
 
-- **Purpose**: Orchestrate AI-powered lead processing
-- **Agents**:
-  - `LeadScraperAgent`: Multi-source web scraping
-  - `LeadEnricherAgent`: AI-powered data enrichment
-  - `LeadScorerAgent`: Lead scoring algorithm
-  - `LeadQualifierAgent`: RAG-based qualification
-  - `LeadDeduplicatorAgent`: Duplicate detection
+## ⚙️ 3. Component Breakdown
 
-#### 3.3 Worker Layer (Celery)
+### 🔹 3.1 API Layer (FastAPI)
 
-- **Purpose**: Background task processing
-- **Task Queues**:
-  - `high_priority`: Critical tasks (lead generation)
-  - `scraping`: Web scraping tasks
-  - `email`: Email delivery
-  - `low_priority`: Cleanup and maintenance
+**Responsibilities:**
 
-#### 3.4 Data Layer
+* Handle incoming requests
+* Validate data
+* Authenticate users
 
-| Technology | Purpose |
-|------------|---------|
-| PostgreSQL | Primary database, ACID compliance |
-| Redis | Caching, session storage, Celery broker |
-| ChromaDB | Vector storage for semantic search |
-| S3/MinIO | Export file storage |
+**Key Features:**
 
+* Async processing
+* Middleware (Auth, Rate Limit, Logging)
+* OpenAPI documentation
+* Dependency Injection
 
-### 6. Scaling Strategy
+---
 
-| Component | Scaling Method |
-|-----------|----------------|
-| API | Horizontal (multiple replicas) |
-| Workers | Horizontal (multiple Celery workers) |
-| Database | Read replicas + connection pooling |
-| Cache | Redis Cluster |
-| Vector DB | ChromaDB clustering |
+### 🤖 3.2 Agent Layer (LangGraph)
 
-### 7. Deployment Architecture
+**Purpose:** AI workflow orchestration
 
-### 8. Monitoring Stack
+**Agents:**
 
-- **Metrics**: Prometheus
-- **Visualization**: Grafana
-- **Logs**: Loki + Promtail
-- **Traces**: Tempo
-- **Alerts**: AlertManager
+| Agent                 | Responsibility      |
+| --------------------- | ------------------- |
+| LeadScraperAgent      | Scrape leads        |
+| LeadEnricherAgent     | Enrich using LLM    |
+| LeadScorerAgent       | Score (0–100)       |
+| LeadQualifierAgent    | RAG-based filtering |
+| LeadDeduplicatorAgent | Remove duplicates   |
 
-### 9. Disaster Recovery
+---
 
-| Scenario | RTO | RPO | Strategy |
-|----------|-----|-----|----------|
-| Database failure | 15 min | 5 min | Automated backups, read replica |
-| Region failure | 1 hour | 15 min | Multi-region replication |
-| Data corruption | 30 min | 24 hours | Point-in-time recovery |
+### ⚡ 3.3 Worker Layer (Celery)
 
+**Purpose:** Async background processing
+
+**Queues:**
+
+* `high_priority` → Critical tasks
+* `scraping` → Data collection
+* `email` → Email delivery
+* `low_priority` → Cleanup jobs
+
+---
+
+### 🗄️ 3.4 Data Layer
+
+| Technology | Role          |
+| ---------- | ------------- |
+| PostgreSQL | Primary DB    |
+| Redis      | Cache + Queue |
+| ChromaDB   | Vector search |
+| S3 / MinIO | File storage  |
+
+---
+
+## 🔄 4. Data Flow
+
+```text
+User Request
+     │
+     ▼
+API Validation
+     │
+     ▼
+Database Entry
+     │
+     ▼
+Celery Task Trigger
+     │
+     ▼
+LangGraph Workflow
+
+1. Scrape Data
+2. Enrich via LLM
+3. Score Leads
+4. Qualify (RAG)
+5. Deduplicate
+6. Store Results
+
+     ▼
+Webhook → External Systems
+```
+
+---
+
+## 🔐 5. Security Architecture
+
+| Layer            | Description    |
+| ---------------- | -------------- |
+| Input Validation | Guardrails     |
+| Authentication   | JWT + API Keys |
+| Rate Limiting    | IP/User based  |
+| Authorization    | RBAC           |
+| Output Filtering | PII masking    |
+| Logging          | Audit trails   |
+
+---
+
+## 📈 6. Scaling Strategy
+
+| Component | Strategy             |
+| --------- | -------------------- |
+| API       | Horizontal scaling   |
+| Workers   | Scale Celery workers |
+| Database  | Read replicas        |
+| Cache     | Redis Cluster        |
+| Vector DB | Distributed setup    |
+
+---
+
+## 🚀 7. Deployment Architecture
+
+```text
+Production Setup:
+
+- API Servers: x3
+- Workers: x5
+- Redis: Cache + Broker
+- PostgreSQL: Primary DB
+- ChromaDB: Vector DB
+
+Infra:
+- Nginx
+- Prometheus
+- Grafana
+```
+
+---
+
+## 📊 8. Monitoring Stack
+
+* Metrics → Prometheus
+* Dashboards → Grafana
+* Logs → Loki + Promtail
+* Tracing → Tempo
+* Alerts → AlertManager
+
+---
+
+## 🛑 9. Disaster Recovery
+
+| Scenario        | RTO    | RPO    | Solution         |
+| --------------- | ------ | ------ | ---------------- |
+| DB Failure      | 15 min | 5 min  | Backup + Replica |
+| Region Failure  | 1 hour | 15 min | Multi-region     |
+| Data Corruption | 30 min | 24 hr  | PITR             |
+
+---
+
+## 🎯 10. Why This Architecture?
+
+* ✅ Scalable (Horizontal scaling)
+* ✅ Async processing (Celery)
+* ✅ AI orchestration (LangGraph)
+* ✅ Clean separation of concerns
+* ✅ Production-ready
+
+---
+
+## 🧠 Interview Explanation (Short)
+
+> "This system uses FastAPI for async APIs, Celery for background processing, and LangGraph for AI workflows.
+> It scales horizontally, uses Redis for caching, and ChromaDB for vector similarity — making it production-ready and efficient."
+
+---
+
+## 📌 Usage
+
+* Portfolio Project
+* System Design Interviews
+* Production Blueprint
+
+---
