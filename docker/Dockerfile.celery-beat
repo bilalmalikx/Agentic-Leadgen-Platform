@@ -1,0 +1,32 @@
+# Celery Beat Container
+# Scheduled tasks ke liye - periodic jobs run karta hai
+
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD celery -A app.core.celery_app inspect ping || exit 1
+
+# Run celery beat (scheduler)
+CMD ["celery", "-A", "app.core.celery_app", "beat", "--loglevel=info", "--scheduler", "celery.beat:PersistentScheduler"]

@@ -35,7 +35,7 @@ AI-powered lead generation system with guardrails, MCP tools, and production-rea
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/lead-generation-system.git
+git clone https://github.com/bilalmalikx/Agentic-Leadgen-Platform
 cd lead-generation-system
 
 # Create virtual environment

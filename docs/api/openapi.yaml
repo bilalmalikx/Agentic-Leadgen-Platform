@@ -1,0 +1,628 @@
+openapi: 3.0.3
+info:
+  title: Lead Generation System
+  description: |
+    AI-powered lead generation system with guardrails and MCP tools.
+    
+    ## Features
+    - Lead generation from multiple sources (LinkedIn, Twitter, Crunchbase)
+    - AI-powered enrichment and scoring
+    - Campaign management
+    - Webhook support
+    - Real-time analytics
+    
+    ## Authentication
+    This API uses JWT Bearer tokens or API keys for authentication.
+    
+    ### JWT Token
+    ### API Key
+version: 1.0.0
+contact:
+name: LeadGen Support
+email: support@leadgen.com
+license:
+name: MIT
+url: https://opensource.org/licenses/MIT
+
+servers:
+- url: https://api.leadgen.com/v1
+description: Production server
+- url: http://localhost:8000/api/v1
+description: Development server
+
+tags:
+- name: Leads
+description: Lead management endpoints
+- name: Campaigns
+description: Campaign management endpoints
+- name: Analytics
+description: Analytics and reporting endpoints
+- name: Webhooks
+description: Webhook management endpoints
+- name: Health
+description: Health check endpoints
+
+components:
+securitySchemes:
+BearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+ApiKeyAuth:
+  type: apiKey
+  in: header
+  name: X-API-Key
+
+schemas:
+Lead:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+      example: "123e4567-e89b-12d3-a456-426614174000"
+    email:
+      type: string
+      format: email
+      example: "john.doe@example.com"
+    first_name:
+      type: string
+      example: "John"
+    last_name:
+      type: string
+      example: "Doe"
+    full_name:
+      type: string
+      example: "John Doe"
+    company_name:
+      type: string
+      example: "Tech Corp"
+    job_title:
+      type: string
+      example: "CTO"
+    score:
+      type: integer
+      minimum: 0
+      maximum: 100
+      example: 85
+    quality:
+      type: string
+      enum: [hot, warm, cold, unqualified]
+      example: "hot"
+    status:
+      type: string
+      enum: [new, contacted, qualified, converted, rejected]
+      example: "qualified"
+    source:
+      type: string
+      enum: [linkedin, twitter, crunchbase, company_website]
+      example: "linkedin"
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+Campaign:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: "AI SaaS Founders"
+    query:
+      type: string
+      example: "founder of AI startup"
+    sources:
+      type: array
+      items:
+        type: string
+      example: ["linkedin", "twitter"]
+    status:
+      type: string
+      enum: [draft, scheduled, running, completed, failed, paused]
+    progress_percentage:
+      type: integer
+      minimum: 0
+      maximum: 100
+    total_leads_found:
+      type: integer
+    created_at:
+      type: string
+      format: date-time
+
+ErrorResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+    error_code:
+      type: string
+      example: "RATE_LIMIT_EXCEEDED"
+    message:
+      type: string
+      example: "Rate limit exceeded. Try again in 60 seconds."
+    request_id:
+      type: string
+      example: "req_abc123"
+    timestamp:
+      type: string
+      format: date-time
+
+SuccessResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: true
+    message:
+      type: string
+      example: "Operation completed successfully"
+    data:
+      type: object
+    request_id:
+      type: string
+    timestamp:
+      type: string
+      format: date-time
+
+PaginatedResponse:
+  type: object
+  properties:
+    items:
+      type: array
+    total:
+      type: integer
+    page:
+      type: integer
+    limit:
+      type: integer
+    total_pages:
+      type: integer
+    has_next:
+      type: boolean
+    has_prev:
+      type: boolean
+
+paths:
+/health:
+get:
+  tags: [Health]
+  summary: Health check
+  description: Returns health status of all services
+  responses:
+    '200':
+      description: All services healthy
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "healthy"
+              services:
+                type: object
+
+/leads:
+get:
+  tags: [Leads]
+  summary: List leads
+  description: Get paginated list of leads with filters
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum: [new, contacted, qualified, converted, rejected]
+    - name: source
+      in: query
+      schema:
+        type: string
+        enum: [linkedin, twitter, crunchbase, company_website]
+    - name: min_score
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 100
+  responses:
+    '200':
+      description: Success
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaginatedResponse'
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    '429':
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+post:
+  tags: [Leads]
+  summary: Create lead
+  description: Create a new lead manually
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - email
+            - source
+          properties:
+            email:
+              type: string
+              format: email
+            first_name:
+              type: string
+            last_name:
+              type: string
+            company_name:
+              type: string
+            job_title:
+              type: string
+            source:
+              type: string
+              enum: [linkedin, twitter, crunchbase, manual]
+            campaign_id:
+              type: string
+              format: uuid
+  responses:
+    '201':
+      description: Lead created
+    '400':
+      description: Validation error
+    '409':
+      description: Duplicate lead
+
+/leads/{lead_id}:
+get:
+  tags: [Leads]
+  summary: Get lead by ID
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: lead_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Success
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Lead'
+    '404':
+      description: Lead not found
+
+put:
+  tags: [Leads]
+  summary: Update lead
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: lead_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            first_name:
+              type: string
+            last_name:
+              type: string
+            company_name:
+              type: string
+            job_title:
+              type: string
+            status:
+              type: string
+            score:
+              type: integer
+  responses:
+    '200':
+      description: Lead updated
+    '404':
+      description: Lead not found
+
+delete:
+  tags: [Leads]
+  summary: Delete lead
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: lead_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Lead deleted
+    '404':
+      description: Lead not found
+
+/campaigns:
+get:
+  tags: [Campaigns]
+  summary: List campaigns
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum: [draft, scheduled, running, completed, failed]
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+  responses:
+    '200':
+      description: Success
+
+post:
+  tags: [Campaigns]
+  summary: Create campaign
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - name
+            - query
+            - sources
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            query:
+              type: string
+            sources:
+              type: array
+              items:
+                type: string
+            target_leads_count:
+              type: integer
+              default: 100
+            priority:
+              type: string
+              enum: [low, medium, high, urgent]
+              default: medium
+  responses:
+    '201':
+      description: Campaign created
+
+/campaigns/{campaign_id}/start:
+post:
+  tags: [Campaigns]
+  summary: Start campaign
+  description: Start a campaign to generate leads
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Campaign started
+    '404':
+      description: Campaign not found
+    '409':
+      description: Campaign already running
+
+/campaigns/{campaign_id}/pause:
+post:
+  tags: [Campaigns]
+  summary: Pause campaign
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Campaign paused
+
+/campaigns/{campaign_id}/leads:
+get:
+  tags: [Campaigns]
+  summary: Get campaign leads
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+  responses:
+    '200':
+      description: Success
+
+/campaigns/{campaign_id}/stats:
+get:
+  tags: [Campaigns]
+  summary: Get campaign statistics
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              total_leads:
+                type: integer
+              qualified_leads:
+                type: integer
+              converted_leads:
+                type: integer
+              average_score:
+                type: number
+              leads_by_source:
+                type: object
+
+/analytics/dashboard:
+get:
+  tags: [Analytics]
+  summary: Dashboard summary
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  responses:
+    '200':
+      description: Success
+
+/analytics/trends:
+get:
+  tags: [Analytics]
+  summary: Lead generation trends
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  parameters:
+    - name: days
+      in: query
+      schema:
+        type: integer
+        default: 30
+    - name: granularity
+      in: query
+      schema:
+        type: string
+        enum: [hour, day, week]
+        default: day
+  responses:
+    '200':
+      description: Success
+
+/webhooks:
+get:
+  tags: [Webhooks]
+  summary: List webhooks
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  responses:
+    '200':
+      description: Success
+
+post:
+  tags: [Webhooks]
+  summary: Create webhook
+  security:
+    - BearerAuth: []
+    - ApiKeyAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - url
+            - events
+          properties:
+            url:
+              type: string
+              format: uri
+            events:
+              type: array
+              items:
+                type: string
+            secret:
+              type: string
+  responses:
+    '201':
+      description: Webhook created
