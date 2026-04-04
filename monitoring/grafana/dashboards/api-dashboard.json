@@ -1,0 +1,102 @@
+{
+  "dashboard": {
+    "title": "LeadGen - API Dashboard",
+    "description": "API performance and metrics dashboard",
+    "tags": ["leadgen", "api"],
+    "timezone": "utc",
+    "panels": [
+      {
+        "title": "API Requests per Second",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(api_requests_total[$__rate_interval])) by (method)",
+            "legendFormat": "{{method}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {"lineWidth": 2}
+          }
+        }
+      },
+      {
+        "title": "API Response Time (95th Percentile)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[$__rate_interval])) by (le, endpoint))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {"lineWidth": 2}
+          }
+        }
+      },
+      {
+        "title": "HTTP Status Codes",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (status) (rate(api_requests_total[$__rate_interval]))",
+            "legendFormat": "Status {{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "stat",
+        "gridPos": {"x": 8, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "(sum(rate(api_requests_total{status=~\"5..\"}[$__rate_interval])) / sum(rate(api_requests_total[$__rate_interval]))) * 100",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Active Users",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(active_users)",
+            "legendFormat": "Active Users"
+          }
+        ]
+      },
+      {
+        "title": "Rate Limit Hits",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(rate_limit_hits_total[$__rate_interval])",
+            "legendFormat": "Rate Limit Hits"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "time": {"from": "now-1h", "to": "now"}
+  }
+}

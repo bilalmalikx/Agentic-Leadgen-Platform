@@ -1,0 +1,47 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  backup:
+    name: Backup Database
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Run backup script
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            cd /app/lead-generation-system
+            ./scripts/backup_db.sh
+          EOF
+
+      - name: Upload backup to S3
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Sync backups to S3
+        run: |
+          aws s3 sync /tmp/backups s3://${{ secrets.S3_BACKUP_BUCKET }}/leadgen-backups/ --delete
+        shell: bash
+
+      - name: Clean old backups (keep 30 days)
+        run: |
+          aws s3 ls s3://${{ secrets.S3_BACKUP_BUCKET }}/leadgen-backups/ --recursive | \
+            awk '$1 < "'$(date -d '30 days ago' +%Y-%m-%d)'" {print $4}' | \
+            while read -r key; do
+              aws s3 rm s3://${{ secrets.S3_BACKUP_BUCKET }}/$key
+            done

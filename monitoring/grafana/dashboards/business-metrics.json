@@ -1,0 +1,107 @@
+{
+  "dashboard": {
+    "title": "LeadGen - Business Metrics",
+    "description": "Lead generation business KPIs",
+    "tags": ["leadgen", "business", "kpi"],
+    "timezone": "utc",
+    "panels": [
+      {
+        "title": "Leads Generated (Last 7 Days)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (source) (rate(leads_generated_total[$__rate_interval]))",
+            "legendFormat": "{{source}}"
+          }
+        ]
+      },
+      {
+        "title": "Leads by Quality",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 6},
+        "targets": [
+          {
+            "expr": "sum by (quality) (leads_qualified_total)",
+            "legendFormat": "{{quality}}"
+          }
+        ]
+      },
+      {
+        "title": "Conversion Funnel",
+        "type": "bargauge",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 6},
+        "targets": [
+          {
+            "expr": "lead_funnel_count",
+            "legendFormat": "{{stage}}"
+          }
+        ]
+      },
+      {
+        "title": "Average Lead Score",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 6, "w": 6, "h": 3},
+        "targets": [
+          {
+            "expr": "avg(lead_score)",
+            "legendFormat": "Average Score"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 40},
+                {"color": "green", "value": 70}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Qualification Rate",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 6, "w": 6, "h": 3},
+        "targets": [
+          {
+            "expr": "(sum(rate(leads_qualified_total[$__rate_interval])) / sum(rate(leads_generated_total[$__rate_interval]))) * 100",
+            "legendFormat": "Qualification Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "title": "Top Lead Sources",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(5, sum by (source) (leads_generated_total))",
+            "format": "table",
+            "legendFormat": "{{source}}"
+          }
+        ]
+      },
+      {
+        "title": "Campaign Performance",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 9, "w": 12, "h": 7},
+        "targets": [
+          {
+            "expr": "campaign_leads_count",
+            "format": "table"
+          }
+        ]
+      }
+    ],
+    "refresh": "1m",
+    "time": {"from": "now-7d", "to": "now"}
+  }
+}

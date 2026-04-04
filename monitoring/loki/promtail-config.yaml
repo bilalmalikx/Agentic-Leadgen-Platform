@@ -1,0 +1,56 @@
+# Promtail Configuration
+# Log collector for Loki
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+client:
+  url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: leadgen-api
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: leadgen-api
+          __path__: /var/log/leadgen/*.log
+
+  - job_name: leadgen-worker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: leadgen-worker
+          __path__: /var/log/leadgen/worker/*.log
+
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/*.log
+
+  - job_name: postgresql
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: postgresql
+          __path__: /var/log/postgresql/*.log
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 10s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'

@@ -1,0 +1,207 @@
+# Prometheus Alert Rules
+# Lead Generation System - Alerting Configuration
+
+groups:
+  - name: api_alerts
+    interval: 30s
+    rules:
+      # API high error rate
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{status=~"5.."}[5m])) /
+            sum(rate(api_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # API slow response
+      - alert: SlowAPIResponse
+        expr: |
+          histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le, endpoint)) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Slow API response"
+          description: "95th percentile response time is {{ $value }}s for endpoint {{ $labels.endpoint }}"
+
+  - name: worker_alerts
+    interval: 30s
+    rules:
+      # Celery queue backup
+      - alert: CeleryQueueBackup
+        expr: queue_size > 1000
+        for: 5m
+        labels:
+          severity: critical
+          component: celery
+        annotations:
+          summary: "Celery queue backup"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} pending tasks"
+
+      # No active workers
+      - alert: NoActiveWorkers
+        expr: celery_workers_active == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: celery
+        annotations:
+          summary: "No active Celery workers"
+          description: "No Celery workers are currently active"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhausted
+        expr: db_connections / db_max_connections > 0.9
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Connection pool usage is {{ $value | humanizePercentage }}"
+
+      # Slow database queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries"
+          description: "95th percentile query time is {{ $value }}s for operation {{ $labels.operation }}"
+
+  - name: scraping_alerts
+    interval: 30s
+    rules:
+      # High scraping failure rate
+      - alert: HighScrapingFailureRate
+        expr: |
+          (
+            sum(rate(scraping_requests_total{status="failed"}[10m])) /
+            sum(rate(scraping_requests_total[10m]))
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: scraping
+        annotations:
+          summary: "High scraping failure rate"
+          description: "Scraping failure rate is {{ $value | humanizePercentage }} for source {{ $labels.source }}"
+
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Disk space low
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining on {{ $labels.instance }}"
+
+  - name: llm_alerts
+    interval: 30s
+    rules:
+      # LLM provider failures
+      - alert: LLMProviderFailure
+        expr: |
+          sum(rate(llm_requests_total{status="failed"}[5m])) by (provider) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: llm
+        annotations:
+          summary: "LLM provider failures"
+          description: "Provider {{ $labels.provider }} is experiencing failures"
+
+      # LLM failover activated
+      - alert: LLMFailoverActivated
+        expr: changes(llm_provider_used[5m]) > 1
+        for: 0m
+        labels:
+          severity: info
+          component: llm
+        annotations:
+          summary: "LLM failover activated"
+          description: "LLM provider has changed multiple times in the last 5 minutes"
+
+  - name: business_alerts
+    interval: 1m
+    rules:
+      # No leads generated
+      - alert: NoLeadsGenerated
+        expr: sum(rate(leads_generated_total[1h])) == 0
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "No leads generated in the last hour"
+          description: "Lead generation seems to be stuck"
+
+      # Low lead qualification rate
+      - alert: LowQualificationRate
+        expr: |
+          (
+            sum(rate(leads_qualified_total[1h])) /
+            sum(rate(leads_generated_total[1h]))
+          ) < 0.1
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Low lead qualification rate"
+          description: "Only {{ $value | humanizePercentage }} of leads are being qualified"
+
+  - name: health_alerts
+    interval: 30s
+    rules:
+      # Service down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.job }} service on {{ $labels.instance }} is down"
