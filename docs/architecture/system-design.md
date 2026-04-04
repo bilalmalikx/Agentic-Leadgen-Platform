@@ -1,226 +1,197 @@
-# 🚀 Lead Generation System – System Design Document
+# 🔄 Data Flow Documentation – Lead Generation System
 
 ---
 
-## 🧩 1. System Overview
-
-The **Lead Generation System** is an AI-powered platform designed to:
-
-* Automatically discover leads from multiple sources
-* Enrich data using LLMs
-* Score and qualify leads intelligently
-* Remove duplicates using vector similarity
-
----
-
-## 🏗️ 2. High-Level Architecture
-
-```text
-                ┌───────────────────────────────┐
-                │         Client Layer          │
-                │ Web | API | MCP | Webhooks    │
-                └──────────────┬────────────────┘
-                               │
-                               ▼
-                ┌───────────────────────────────┐
-                │     Load Balancer (Nginx)     │
-                └──────────────┬────────────────┘
-                               │
-                               ▼
-                ┌───────────────────────────────┐
-                │      API Gateway (FastAPI)    │
-                └──────────────┬────────────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        ▼                      ▼                      ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│ Service Layer │     │ Worker Layer  │     │ Cache Layer   │
-│               │     │ (Celery)      │     │ (Redis)       │
-└──────┬────────┘     └──────┬────────┘     └───────────────┘
-       │                     │
-       ▼                     ▼
-        ┌────────────────────────────────────────────┐
-        │               Data Layer                   │
-        │ PostgreSQL | ChromaDB | Redis | S3         │
-        └────────────────────────────────────────────┘
-```
-
----
-
-## ⚙️ 3. Component Breakdown
-
-### 🔹 3.1 API Layer (FastAPI)
-
-**Responsibilities:**
-
-* Handle incoming requests
-* Validate data
-* Authenticate users
-
-**Key Features:**
-
-* Async processing
-* Middleware (Auth, Rate Limit, Logging)
-* OpenAPI documentation
-* Dependency Injection
-
----
-
-### 🤖 3.2 Agent Layer (LangGraph)
-
-**Purpose:** AI workflow orchestration
-
-**Agents:**
-
-| Agent                 | Responsibility      |
-| --------------------- | ------------------- |
-| LeadScraperAgent      | Scrape leads        |
-| LeadEnricherAgent     | Enrich using LLM    |
-| LeadScorerAgent       | Score (0–100)       |
-| LeadQualifierAgent    | RAG-based filtering |
-| LeadDeduplicatorAgent | Remove duplicates   |
-
----
-
-### ⚡ 3.3 Worker Layer (Celery)
-
-**Purpose:** Async background processing
-
-**Queues:**
-
-* `high_priority` → Critical tasks
-* `scraping` → Data collection
-* `email` → Email delivery
-* `low_priority` → Cleanup jobs
-
----
-
-### 🗄️ 3.4 Data Layer
-
-| Technology | Role          |
-| ---------- | ------------- |
-| PostgreSQL | Primary DB    |
-| Redis      | Cache + Queue |
-| ChromaDB   | Vector search |
-| S3 / MinIO | File storage  |
-
----
-
-## 🔄 4. Data Flow
+## 🧩 1. Campaign Creation Flow
 
 ```text
 User Request
-     │
-     ▼
-API Validation
-     │
-     ▼
-Database Entry
-     │
-     ▼
-Celery Task Trigger
-     │
-     ▼
-LangGraph Workflow
-
-1. Scrape Data
-2. Enrich via LLM
-3. Score Leads
-4. Qualify (RAG)
-5. Deduplicate
-6. Store Results
-
-     ▼
-Webhook → External Systems
+    │
+    ▼
+POST /api/v1/campaigns
+    │
+    ▼
+Validation (Guardrails)
+    │
+    ▼
+Create Campaign (PostgreSQL)
+    │
+    ▼
+Trigger Celery Task
+    │
+    ▼
+Response → 202 Accepted (Campaign ID)
 ```
 
 ---
 
-## 🔐 5. Security Architecture
-
-| Layer            | Description    |
-| ---------------- | -------------- |
-| Input Validation | Guardrails     |
-| Authentication   | JWT + API Keys |
-| Rate Limiting    | IP/User based  |
-| Authorization    | RBAC           |
-| Output Filtering | PII masking    |
-| Logging          | Audit trails   |
-
----
-
-## 📈 6. Scaling Strategy
-
-| Component | Strategy             |
-| --------- | -------------------- |
-| API       | Horizontal scaling   |
-| Workers   | Scale Celery workers |
-| Database  | Read replicas        |
-| Cache     | Redis Cluster        |
-| Vector DB | Distributed setup    |
-
----
-
-## 🚀 7. Deployment Architecture
+## 🤖 2. Lead Generation Workflow (LangGraph)
 
 ```text
-Production Setup:
-
-- API Servers: x3
-- Workers: x5
-- Redis: Cache + Broker
-- PostgreSQL: Primary DB
-- ChromaDB: Vector DB
-
-Infra:
-- Nginx
-- Prometheus
-- Grafana
+Scrape → Validate → Enrich → Score → Qualify → Deduplicate → Save
 ```
 
 ---
 
-## 📊 8. Monitoring Stack
+## ⚙️ 3. Node-Level Processing
 
-* Metrics → Prometheus
-* Dashboards → Grafana
-* Logs → Loki + Promtail
-* Tracing → Tempo
-* Alerts → AlertManager
+### 🔹 Scrape Leads
 
----
-
-## 🛑 9. Disaster Recovery
-
-| Scenario        | RTO    | RPO    | Solution         |
-| --------------- | ------ | ------ | ---------------- |
-| DB Failure      | 15 min | 5 min  | Backup + Replica |
-| Region Failure  | 1 hour | 15 min | Multi-region     |
-| Data Corruption | 30 min | 24 hr  | PITR             |
+* Multi-source scraping (LinkedIn, Twitter, etc.)
+* Uses Playwright + APIs
+* Outputs raw JSON
 
 ---
 
-## 🎯 10. Why This Architecture?
+### 🔹 Validate Leads
 
-* ✅ Scalable (Horizontal scaling)
-* ✅ Async processing (Celery)
-* ✅ AI orchestration (LangGraph)
-* ✅ Clean separation of concerns
-* ✅ Production-ready
+* Email, phone, URL validation
+* Removes incomplete records
 
 ---
 
-## 🧠 Interview Explanation (Short)
+### 🔹 Enrich Leads
 
-> "This system uses FastAPI for async APIs, Celery for background processing, and LangGraph for AI workflows.
-> It scales horizontally, uses Redis for caching, and ChromaDB for vector similarity — making it production-ready and efficient."
+* LLM-based enrichment
+* Adds:
+
+  * Company size
+  * Industry
+  * Tech stack
+  * Funding stage
 
 ---
 
-## 📌 Usage
+### 🔹 Score Leads
 
-* Portfolio Project
-* System Design Interviews
-* Production Blueprint
+* Weighted scoring system:
+
+| Factor        | Weight |
+| ------------- | ------ |
+| Job Title     | 30%    |
+| Company Match | 25%    |
+| Activity      | 20%    |
+| Company Size  | 15%    |
+| Location      | 10%    |
+
+---
+
+### 🔹 Qualify Leads
+
+* RAG-based similarity matching
+* LLM reasoning
+* Rule fallback
+
+---
+
+### 🔹 Deduplicate
+
+* Email matching
+* Fuzzy name matching
+* Vector similarity
+
+---
+
+### 🔹 Save Leads
+
+* Store in PostgreSQL
+* Generate embeddings
+* Store in ChromaDB
+* Trigger webhook
+
+---
+
+## 🗄️ 4. Data Relationships
+
+```text
+User → Campaign → Lead
+        │
+        ├── ScrapingJob
+        └── EmailLog
+```
+
+---
+
+## 🌐 5. API Flow
+
+```text
+Client → Nginx → FastAPI
+        │
+        ├─ Auth (JWT/API Key)
+        ├─ Rate Limit
+        ├─ Logging
+        ▼
+Route Handler → DB → Celery
+        ▼
+Response → Client
+```
+
+---
+
+## ⚡ 6. Async Processing
+
+```text
+API → Queue → Worker → Process → DB → Webhook
+```
+
+---
+
+## 🔗 7. Webhook Flow
+
+```text
+Trigger Event
+    │
+    ▼
+Webhook Service
+    │
+    ├─ Send Request
+    ├─ Success → Update
+    └─ Failure → Retry
+
+Retry Strategy:
+30s → 60s → 120s → 240s → 480s
+```
+
+---
+
+## ❌ 8. Error Handling
+
+```text
+Error → Log → Classify → Map Status → Respond
+```
+
+---
+
+## 🧹 9. Data Retention
+
+* Leads > 90 days → soft delete
+* Failed jobs > 7 days → delete
+* Exports > 24h → cleanup
+* Monthly → quota reset
+
+---
+
+## ⚡ 10. Cache Flow
+
+```text
+Request → Redis
+   │
+   ├─ HIT → Return
+   └─ MISS → DB → Cache → Return
+```
+
+---
+
+## 🎯 Summary
+
+* End-to-end system data movement
+* Covers sync + async flows
+* Includes validation, AI processing, storage
+
+---
+
+## 🧠 Interview Explanation
+
+> "Data flows from API to Celery workers, processed via LangGraph pipeline (scrape → enrich → score → qualify), then stored in DB and vector store, with caching and webhook notifications."
 
 ---
