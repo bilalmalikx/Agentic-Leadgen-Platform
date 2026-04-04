@@ -24,6 +24,7 @@ class LeadGenerationState(TypedDict):
     target_count: int
     current_page: int
     scraped_leads: List[Dict[str, Any]]
+    validated_leads: List[Dict[str, Any]]
     enriched_leads: List[Dict[str, Any]]
     scored_leads: List[Dict[str, Any]]
     qualified_leads: List[Dict[str, Any]]
@@ -38,7 +39,7 @@ class LeadGenerationState(TypedDict):
 class LeadGenerationGraph:
     """
     LangGraph workflow for lead generation
-    Orchestrates scraping -> enrichment -> scoring -> qualification -> deduplication
+    Orchestrates: scrape -> validate -> enrich -> score -> qualify -> deduplicate -> save
     """
     
     def __init__(self):
@@ -54,6 +55,7 @@ class LeadGenerationGraph:
         
         # Add nodes (each node is an agent)
         workflow.add_node("scrape_leads", self.scrape_leads_node)
+        workflow.add_node("validate_leads", self.validate_leads_node)
         workflow.add_node("enrich_leads", self.enrich_leads_node)
         workflow.add_node("score_leads", self.score_leads_node)
         workflow.add_node("qualify_leads", self.qualify_leads_node)
@@ -69,9 +71,18 @@ class LeadGenerationGraph:
             "scrape_leads",
             self.should_continue_after_scrape,
             {
-                "continue": "enrich_leads",
+                "continue": "validate_leads",
                 "error": "handle_error",
                 "retry": "scrape_leads"
+            }
+        )
+        
+        workflow.add_conditional_edges(
+            "validate_leads",
+            self.should_continue_after_validate,
+            {
+                "continue": "enrich_leads",
+                "error": "handle_error"
             }
         )
         
@@ -118,9 +129,7 @@ class LeadGenerationGraph:
         return workflow.compile(checkpointer=self.memory)
     
     async def scrape_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 1: Scrape leads from multiple sources
-        """
+        """Node 1: Scrape leads from multiple sources"""
         self.logger.info(f"Scraping leads for campaign {state['campaign_id']}")
         
         try:
@@ -144,18 +153,41 @@ class LeadGenerationGraph:
         
         return state
     
+    async def validate_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
+        """Node 2: Validate lead data"""
+        self.logger.info(f"Validating {len(state['scraped_leads'])} leads")
+        
+        try:
+            from app.agents.lead_validator import get_validator_agent
+            
+            validator = get_validator_agent()
+            validated_leads = await validator.validate_batch(state["scraped_leads"])
+            
+            # Filter out invalid leads
+            valid_leads = [lead for lead in validated_leads if lead.get("is_valid", False)]
+            invalid_count = len(validated_leads) - len(valid_leads)
+            
+            state["validated_leads"] = valid_leads
+            state["status"] = "validated"
+            self.logger.info(f"Validated {len(valid_leads)} leads ({invalid_count} invalid)")
+            
+        except Exception as e:
+            self.logger.error(f"Validation failed: {e}")
+            state["errors"].append(f"Validation error: {str(e)}")
+            state["status"] = "validate_failed"
+        
+        return state
+    
     async def enrich_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 2: Enrich leads using AI
-        """
-        self.logger.info(f"Enriching {len(state['scraped_leads'])} leads")
+        """Node 3: Enrich leads using AI"""
+        self.logger.info(f"Enriching {len(state['validated_leads'])} leads")
         
         try:
             from app.agents.lead_enricher import LeadEnricherAgent
             
             enricher = LeadEnricherAgent()
             enriched_leads = await enricher.enrich_batch(
-                leads=state["scraped_leads"]
+                leads=state["validated_leads"]
             )
             
             state["enriched_leads"] = enriched_leads
@@ -170,18 +202,14 @@ class LeadGenerationGraph:
         return state
     
     async def score_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 3: Score leads based on multiple criteria
-        """
+        """Node 4: Score leads based on multiple criteria"""
         self.logger.info(f"Scoring {len(state['enriched_leads'])} leads")
         
         try:
-            from app.agents.lead_scorer import LeadScorerAgent
+            from app.agents.lead_scorer import get_scorer_agent
             
-            scorer = LeadScorerAgent()
-            scored_leads = await scorer.score_batch(
-                leads=state["enriched_leads"]
-            )
+            scorer = get_scorer_agent()
+            scored_leads = await scorer.score_batch(state["enriched_leads"])
             
             state["scored_leads"] = scored_leads
             state["status"] = "scored"
@@ -195,18 +223,16 @@ class LeadGenerationGraph:
         return state
     
     async def qualify_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 4: Qualify leads (AI-based or rule-based)
-        """
+        """Node 5: Qualify leads (AI-based or rule-based)"""
         self.logger.info(f"Qualifying {len(state['scored_leads'])} leads")
         
         try:
-            from app.agents.lead_qualifier import LeadQualifierAgent
+            from app.agents.lead_qualifier import get_qualifier_agent
             
-            qualifier = LeadQualifierAgent()
+            qualifier = get_qualifier_agent()
             qualified_leads = await qualifier.qualify_batch(
                 leads=state["scored_leads"],
-                threshold=60  # Minimum score to qualify
+                threshold=60
             )
             
             state["qualified_leads"] = qualified_leads
@@ -221,15 +247,13 @@ class LeadGenerationGraph:
         return state
     
     async def deduplicate_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 5: Remove duplicate leads
-        """
+        """Node 6: Remove duplicate leads"""
         self.logger.info(f"Deduplicating {len(state['qualified_leads'])} leads")
         
         try:
-            from app.agents.lead_deduplicator import LeadDeduplicatorAgent
+            from app.agents.lead_deduplicator import get_deduplicator_agent
             
-            deduplicator = LeadDeduplicatorAgent()
+            deduplicator = get_deduplicator_agent()
             deduplicated_leads = await deduplicator.deduplicate_batch(
                 leads=state["qualified_leads"],
                 similarity_threshold=0.85
@@ -247,9 +271,7 @@ class LeadGenerationGraph:
         return state
     
     async def save_leads_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Node 6: Save leads to database and vector store
-        """
+        """Node 7: Save leads to database and vector store"""
         self.logger.info(f"Saving {len(state['deduplicated_leads'])} leads to database")
         
         try:
@@ -267,7 +289,7 @@ class LeadGenerationGraph:
                     
                     # Also save to vector store
                     from app.vector_store.lead_index import add_lead_to_index
-                    add_lead_to_index(lead)
+                    await add_lead_to_index(lead)
                 
                 state["final_leads"] = state["deduplicated_leads"]
                 state["status"] = "completed"
@@ -283,50 +305,52 @@ class LeadGenerationGraph:
         return state
     
     async def handle_error_node(self, state: LeadGenerationState) -> LeadGenerationState:
-        """
-        Error handling node
-        """
+        """Error handling node"""
         self.logger.error(f"Workflow error: {state['errors'][-1] if state['errors'] else 'Unknown error'}")
         state["status"] = "failed"
         state["completed_at"] = datetime.utcnow().isoformat()
         return state
     
     def should_continue_after_scrape(self, state: LeadGenerationState) -> str:
-        """Decide next step after scraping"""
         if state["status"] == "scrape_failed":
-            if len(state["errors"]) < 3:  # Max 3 retries
+            if len(state["errors"]) < 3:
                 return "retry"
             return "error"
         return "continue"
     
+    def should_continue_after_validate(self, state: LeadGenerationState) -> str:
+        if state["status"] == "validate_failed":
+            return "error"
+        return "continue"
+    
     def should_continue_after_enrich(self, state: LeadGenerationState) -> str:
-        """Decide next step after enrichment"""
         if state["status"] == "enrich_failed":
             return "error"
         return "continue"
     
     def should_continue_after_score(self, state: LeadGenerationState) -> str:
-        """Decide next step after scoring"""
         if state["status"] == "score_failed":
             return "error"
         return "continue"
     
     def should_continue_after_qualify(self, state: LeadGenerationState) -> str:
-        """Decide next step after qualification"""
         if state["status"] == "qualify_failed":
             return "error"
         return "continue"
     
     def should_continue_after_dedupe(self, state: LeadGenerationState) -> str:
-        """Decide next step after deduplication"""
         if state["status"] == "dedupe_failed":
             return "error"
         return "continue"
     
-    async def run(self, campaign_id: str, query: str, sources: List[str], target_count: int) -> Dict[str, Any]:
-        """
-        Run the complete workflow
-        """
+    async def run(
+        self,
+        campaign_id: str,
+        query: str,
+        sources: List[str],
+        target_count: int
+    ) -> Dict[str, Any]:
+        """Run the complete workflow"""
         initial_state: LeadGenerationState = {
             "campaign_id": campaign_id,
             "query": query,
@@ -334,6 +358,7 @@ class LeadGenerationGraph:
             "target_count": target_count,
             "current_page": 1,
             "scraped_leads": [],
+            "validated_leads": [],
             "enriched_leads": [],
             "scored_leads": [],
             "qualified_leads": [],
@@ -347,7 +372,6 @@ class LeadGenerationGraph:
         
         self.logger.info(f"Starting workflow for campaign {campaign_id}")
         
-        # Run the graph
         config = {"configurable": {"thread_id": campaign_id}}
         final_state = await self.graph.ainvoke(initial_state, config=config)
         
@@ -373,14 +397,15 @@ def get_workflow() -> LeadGenerationGraph:
     return _workflow
 
 
-def run_lead_generation_workflow(campaign_id: str, query: str, sources: List[str], target_count: int) -> Dict[str, Any]:
-    """
-    Synchronous wrapper for running workflow
-    (For Celery tasks)
-    """
+def run_lead_generation_workflow(
+    campaign_id: str,
+    query: str,
+    sources: List[str],
+    target_count: int
+) -> Dict[str, Any]:
+    """Synchronous wrapper for running workflow (for Celery tasks)"""
     workflow = get_workflow()
     
-    # Run async in sync context
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:

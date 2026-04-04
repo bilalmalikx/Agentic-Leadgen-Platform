@@ -311,4 +311,7 @@ async def add_lead_to_index(lead) -> bool:
         "score": lead.score,
         "status": lead.status.value if lead.status else None,
         "quality": lead.quality.value if lead.quality else None,
-        "skills": lead.m
+        "skills": lead.metadata.get("skills", []),
+        "company_description": lead.metadata.get("company_description", ""),
+        "tech_stack": lead.tech_stack or []
+    })
