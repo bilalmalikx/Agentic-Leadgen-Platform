@@ -2,10 +2,11 @@
 User Model - Authentication and API key management
 """
 
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, JSON, Text, Index
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from datetime import datetime
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, JSON, Text, Index, Enum
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql.schema import ForeignKey
 import enum
 
 from app.models.base import BaseModel, SoftDeleteMixin, AuditMixin, MetadataMixin
@@ -128,16 +129,16 @@ class APIKey(BaseModel, AuditMixin):
     
     # Key information
     key_hash = Column(String(255), nullable=False, unique=True, index=True)
-    key_prefix = Column(String(10), nullable=False)  # First few chars for identification
-    name = Column(String(255), nullable=False)  # Human-readable name
+    key_prefix = Column(String(10), nullable=False)
+    name = Column(String(255), nullable=False)
     
     # Association
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     user = relationship("User", back_populates="api_keys")
     
     # Permissions
-    permissions = Column(JSON, default=list, nullable=False)  # List of allowed endpoints
-    allowed_ips = Column(ARRAY(String), nullable=True)  # Restrict to specific IPs
+    permissions = Column(JSON, default=list, nullable=False)
+    allowed_ips = Column(ARRAY(String), nullable=True)
     
     # Expiration
     expires_at = Column(DateTime(timezone=True), nullable=True)

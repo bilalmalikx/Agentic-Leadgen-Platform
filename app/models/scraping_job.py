@@ -1,12 +1,11 @@
 """
 Scraping Job Model - Tracks individual scraping jobs
-For monitoring and debugging scraping activities
 """
 
+from datetime import datetime
 from sqlalchemy import Column, String, Integer, JSON, Enum, Text, ForeignKey, Index, Float, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime
 import enum
 
 from app.models.base import BaseModel, AuditMixin
@@ -18,7 +17,7 @@ class JobStatus(enum.Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-    PARTIAL = "partial"  # Some sources succeeded, some failed
+    PARTIAL = "partial"
     CANCELLED = "cancelled"
 
 
@@ -53,7 +52,7 @@ class ScrapingJob(BaseModel, AuditMixin):
     search_params = Column(JSON, default=dict, nullable=False)
     
     # Pagination/Cursor
-    cursor = Column(String(500), nullable=True)  # For paginated APIs
+    cursor = Column(String(500), nullable=True)
     page = Column(Integer, default=1)
     limit = Column(Integer, default=100)
     
@@ -79,7 +78,7 @@ class ScrapingJob(BaseModel, AuditMixin):
     # Error Handling
     error_message = Column(Text, nullable=True)
     error_stack = Column(Text, nullable=True)
-    failed_items = Column(JSON, default=list, nullable=False)  # List of failed items
+    failed_items = Column(JSON, default=list, nullable=False)
     
     # Proxy Information
     proxy_used = Column(String(255), nullable=True)
@@ -113,7 +112,6 @@ class ScrapingJob(BaseModel, AuditMixin):
         self.status = JobStatus.COMPLETED
         self.completed_at = datetime.utcnow()
         
-        # Calculate duration
         if self.started_at:
             duration = (self.completed_at - self.started_at).total_seconds()
             self.estimated_duration_seconds = int(duration)
@@ -148,7 +146,6 @@ class ScrapingJob(BaseModel, AuditMixin):
     def add_failed_item(self, item_data: dict):
         """Add failed item to list"""
         self.failed_items.append(item_data)
-        # Keep only last 100 failed items to avoid huge JSON
         if len(self.failed_items) > 100:
             self.failed_items = self.failed_items[-100:]
     

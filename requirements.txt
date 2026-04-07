@@ -34,4 +34,3 @@ openpyxl
 python-dotenv
 pyyaml
 orjson
-EOF

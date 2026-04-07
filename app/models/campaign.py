@@ -3,7 +3,8 @@ Campaign Model - Stores lead generation campaigns
 Each campaign defines what leads to scrape and from where
 """
 
-from sqlalchemy import Column, String, Integer, JSON, Enum, Text, ForeignKey, Index, Boolean
+from datetime import datetime
+from sqlalchemy import Column, String, Integer, JSON, Enum, Text, ForeignKey, Index, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 import enum
@@ -40,22 +41,22 @@ class Campaign(BaseModel, AuditMixin, MetadataMixin):
     description = Column(Text, nullable=True)
     
     # Search Parameters
-    query = Column(Text, nullable=False)  # Search query (e.g., "AI startup founders")
-    keywords = Column(ARRAY(String), nullable=True)  # List of keywords
-    locations = Column(ARRAY(String), nullable=True)  # Target locations
-    industries = Column(ARRAY(String), nullable=True)  # Target industries
-    job_titles = Column(ARRAY(String), nullable=True)  # Target job titles
+    query = Column(Text, nullable=False)
+    keywords = Column(ARRAY(String), nullable=True)
+    locations = Column(ARRAY(String), nullable=True)
+    industries = Column(ARRAY(String), nullable=True)
+    job_titles = Column(ARRAY(String), nullable=True)
     
     # Sources Configuration
-    sources = Column(ARRAY(String), nullable=False)  # linkedin, twitter, crunchbase, etc.
-    source_config = Column(JSON, default=dict, nullable=False)  # Source-specific config
+    sources = Column(ARRAY(String), nullable=False)
+    source_config = Column(JSON, default=dict, nullable=False)
     
     # Target Settings
     target_leads_count = Column(Integer, default=100, nullable=False)
     max_leads_per_source = Column(Integer, default=50, nullable=False)
     
     # Filters
-    min_score_threshold = Column(Integer, default=0, nullable=False)  # Only keep leads with score >= this
+    min_score_threshold = Column(Integer, default=0, nullable=False)
     enable_deduplication = Column(Boolean, default=True, nullable=False)
     enable_enrichment = Column(Boolean, default=True, nullable=False)
     enable_scoring = Column(Boolean, default=True, nullable=False)
@@ -67,7 +68,7 @@ class Campaign(BaseModel, AuditMixin, MetadataMixin):
     # Status & Progress
     status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT, nullable=False, index=True)
     priority = Column(Enum(CampaignPriority), default=CampaignPriority.MEDIUM, nullable=False)
-    progress_percentage = Column(Integer, default=0, nullable=False)  # 0-100
+    progress_percentage = Column(Integer, default=0, nullable=False)
     
     # Counts
     total_leads_found = Column(Integer, default=0, nullable=False)
@@ -83,12 +84,12 @@ class Campaign(BaseModel, AuditMixin, MetadataMixin):
     
     # Webhook Configuration
     webhook_url = Column(String(500), nullable=True)
-    webhook_events = Column(ARRAY(String), nullable=True)  # on_complete, on_lead_added, etc.
+    webhook_events = Column(ARRAY(String), nullable=True)
     
     # Export Configuration
     auto_export = Column(Boolean, default=False)
-    export_format = Column(String(20), default="csv")  # csv, json, excel
-    export_destination = Column(String(500), nullable=True)  # S3 path, email, etc.
+    export_format = Column(String(20), default="csv")
+    export_destination = Column(String(500), nullable=True)
     
     # Relationships
     leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan")
