@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, s
 from typing import List, Optional
 from uuid import UUID
 
-from app.api.dependencies import get_current_user, get_db, get_lead_service
+from app.api.dependencies import get_current_user, get_db_session, get_lead_service
 from app.schemas.lead import (
     LeadCreate, LeadUpdate, LeadResponse, LeadDetailResponse,
     LeadSearchParams, LeadBulkCreate, LeadExportRequest, LeadScoreUpdate,

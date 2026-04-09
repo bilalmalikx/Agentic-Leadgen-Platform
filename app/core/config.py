@@ -146,6 +146,10 @@ class Settings(BaseSettings):
     celery_task_time_limit: int = Field(default=3600, alias="CELERY_TASK_TIME_LIMIT")
     celery_task_soft_time_limit: int = Field(default=3000, alias="CELERY_TASK_SOFT_TIME_LIMIT")
     celery_worker_concurrency: int = Field(default=4, alias="CELERY_WORKER_CONCURRENCY")
+    celery_worker_max_tasks_per_child: int = Field(
+    default=100,
+    alias="CELERY_WORKER_MAX_TASKS_PER_CHILD"
+)
     
     # Vector Database
     chroma_host: str = Field(default="localhost", alias="CHROMA_HOST")
