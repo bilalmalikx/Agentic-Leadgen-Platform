@@ -3,7 +3,7 @@ Webhook Delivery Model
 Tracks webhook delivery attempts and status
 """
 
-from sqlalchemy import Column, String, Integer, JSON, Text, ForeignKey, Index, DateTime, Boolean
+from sqlalchemy import Column, String, Integer, JSON, Text, ForeignKey, Index, DateTime, Boolean, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import enum

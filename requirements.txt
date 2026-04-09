@@ -34,3 +34,4 @@ openpyxl
 python-dotenv
 pyyaml
 orjson
+anthropic

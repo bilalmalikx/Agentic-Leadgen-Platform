@@ -3,7 +3,7 @@ Scraping Job Model - Tracks individual scraping jobs
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, JSON, Enum, Text, ForeignKey, Index, Float, DateTime
+from sqlalchemy import Column, String, Integer, JSON, Enum, Text, ForeignKey, Index, Float, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import enum

@@ -3,7 +3,7 @@ Audit Log Model
 Tracks all important actions for compliance and debugging
 """
 
-from sqlalchemy import Column, String, Integer, JSON, Text, ForeignKey, Index, DateTime
+from sqlalchemy import Column, String, Integer, JSON, Text, ForeignKey, Index, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID, INET
 from sqlalchemy.orm import relationship
 from datetime import datetime
