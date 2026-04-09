@@ -23,17 +23,17 @@ api_router.include_router(
     tags=["Campaigns"]
 )
 
-api_router.include_router(
-    analytics.router,
-    prefix="/analytics",
-    tags=["Analytics"]
-)
+# api_router.include_router(
+#     analytics.router,
+#     prefix="/analytics",
+#     tags=["Analytics"]
+# )
 
-api_router.include_router(
-    webhooks.router,
-    prefix="/webhooks",
-    tags=["Webhooks"]
-)
+# api_router.include_router(
+#     webhooks.router,
+#     prefix="/webhooks",
+#     tags=["Webhooks"]
+# )
 
 api_router.include_router(
     health.router,

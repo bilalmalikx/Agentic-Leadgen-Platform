@@ -1,6 +1,6 @@
 """
 Database Configuration and Session Management
-Async PostgreSQL with SQLAlchemy 2.0
+Async PostgreSQL (FastAPI) + Sync Session (Celery/Alembic support)
 """
 
 from sqlalchemy.ext.asyncio import (
@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncEngine
 )
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import text
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, text
+from contextlib import asynccontextmanager, contextmanager
 from typing import Optional, Dict, Any
 import logging
 
@@ -18,34 +19,41 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create base class for models
+# =========================
+# Base Model
+# =========================
 Base = declarative_base()
 
-# Global engine and session factory
+# =========================
+# Async (FastAPI)
+# =========================
 _engine: Optional[AsyncEngine] = None
 _async_session_maker: Optional[async_sessionmaker] = None
 
+# =========================
+# Sync (Celery / Alembic)
+# =========================
+_sync_engine = None
+_SyncSessionLocal = None
 
+
+# =========================================================
+# INIT DATABASE (ASYNC)
+# =========================================================
 async def init_db() -> None:
-    """
-    Initialize database connection pool
-    Creates engine and session factory
-    """
     global _engine, _async_session_maker
-    
+
     try:
-        # Create async engine with connection pooling
         _engine = create_async_engine(
             settings.get_database_url_async(),
             pool_size=settings.database_pool_size,
             max_overflow=settings.database_max_overflow,
             pool_timeout=settings.database_pool_timeout,
-            pool_pre_ping=True,  # Verify connections before using
+            pool_pre_ping=True,
             echo=settings.database_echo,
             echo_pool=settings.database_echo
         )
-        
-        # Create session factory
+
         _async_session_maker = async_sessionmaker(
             _engine,
             class_=AsyncSession,
@@ -53,37 +61,40 @@ async def init_db() -> None:
             autocommit=False,
             autoflush=False
         )
-        
+
         # Test connection
         async with _engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        
-        logger.info("Database connection pool created successfully")
-        
+
+        logger.info("✅ Async database initialized successfully")
+
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+        logger.error(f"❌ Failed to initialize async DB: {e}")
         raise
 
 
+# =========================================================
+# CLOSE DATABASE
+# =========================================================
 async def close_db() -> None:
-    """
-    Close database connection pool
-    Cleanup on application shutdown
-    """
     global _engine
+
     if _engine:
         await _engine.dispose()
-        logger.info("Database connection pool closed")
+        logger.info("🛑 Async database connection closed")
 
 
-async def get_session() -> AsyncSession:
+# =========================================================
+# ASYNC SESSION (FASTAPI)
+# =========================================================
+@asynccontextmanager
+async def get_session():
     """
-    Get a database session
-    Used as dependency in FastAPI routes
+    FastAPI async DB session
     """
     if not _async_session_maker:
         await init_db()
-    
+
     async with _async_session_maker() as session:
         try:
             yield session
@@ -95,39 +106,77 @@ async def get_session() -> AsyncSession:
             await session.close()
 
 
+# FastAPI dependency
+async def get_db():
+    async with get_session() as session:
+        yield session
+
+
+# =========================================================
+# SYNC ENGINE (CELERY / ALEMBIC)
+# =========================================================
+def get_sync_engine():
+    global _sync_engine
+
+    if _sync_engine is None:
+        _sync_engine = create_engine(
+            settings.get_database_url_sync(),
+            pool_pre_ping=True
+        )
+
+    return _sync_engine
+
+
+# =========================================================
+# SYNC SESSION (CELERY TASKS)
+# =========================================================
+@contextmanager
+def get_sync_session():
+    """
+    Sync DB session for Celery tasks
+    """
+    global _SyncSessionLocal
+
+    if _SyncSessionLocal is None:
+        _SyncSessionLocal = sessionmaker(
+            bind=get_sync_engine(),
+            autocommit=False,
+            autoflush=False
+        )
+
+    db = _SyncSessionLocal()
+
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 async def get_db_health() -> Dict[str, Any]:
-    """
-    Check database health
-    Returns status and connection info
-    """
     try:
         if not _engine:
-            return {"status": "unhealthy", "error": "Database not initialized"}
-        
+            return {"status": "unhealthy", "error": "DB not initialized"}
+
         async with _engine.begin() as conn:
-            result = await conn.execute(text("SELECT 1 as health, version(), current_database(), current_user"))
+            result = await conn.execute(
+                text("SELECT 1 as health, version(), current_database(), current_user")
+            )
             row = result.fetchone()
-            
+
             return {
                 "status": "healthy",
-                "version": row[1] if row else "unknown",
-                "database": row[2] if row else "unknown",
-                "user": row[3] if row else "unknown"
+                "version": row[1] if row else None,
+                "database": row[2] if row else None,
+                "user": row[3] if row else None
             }
+
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(f"DB health check failed: {e}")
         return {"status": "unhealthy", "error": str(e)}
-
-
-# Dependency to get session (for FastAPI routes)
-async def get_db():
-    """FastAPI dependency for database session"""
-    async for session in get_session():
-        return session
-
-
-# Sync engine for Alembic migrations (not async)
-def get_sync_engine():
-    """Get sync engine for migrations"""
-    from sqlalchemy import create_engine
-    return create_engine(settings.get_database_url_sync())
