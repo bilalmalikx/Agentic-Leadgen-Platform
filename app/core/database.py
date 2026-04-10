@@ -19,27 +19,20 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# =========================
 # Base Model
-# =========================
 Base = declarative_base()
 
-# =========================
 # Async (FastAPI)
-# =========================
 _engine: Optional[AsyncEngine] = None
 _async_session_maker: Optional[async_sessionmaker] = None
 
-# =========================
+
 # Sync (Celery / Alembic)
-# =========================
 _sync_engine = None
 _SyncSessionLocal = None
 
 
-# =========================================================
 # INIT DATABASE (ASYNC)
-# =========================================================
 async def init_db() -> None:
     global _engine, _async_session_maker
 
@@ -73,9 +66,7 @@ async def init_db() -> None:
         raise
 
 
-# =========================================================
 # CLOSE DATABASE
-# =========================================================
 async def close_db() -> None:
     global _engine
 
@@ -84,9 +75,7 @@ async def close_db() -> None:
         logger.info("🛑 Async database connection closed")
 
 
-# =========================================================
 # ASYNC SESSION (FASTAPI)
-# =========================================================
 @asynccontextmanager
 async def get_session():
     """
@@ -112,9 +101,7 @@ async def get_db():
         yield session
 
 
-# =========================================================
 # SYNC ENGINE (CELERY / ALEMBIC)
-# =========================================================
 def get_sync_engine():
     global _sync_engine
 
@@ -127,9 +114,7 @@ def get_sync_engine():
     return _sync_engine
 
 
-# =========================================================
 # SYNC SESSION (CELERY TASKS)
-# =========================================================
 @contextmanager
 def get_sync_session():
     """
@@ -156,9 +141,7 @@ def get_sync_session():
         db.close()
 
 
-# =========================================================
 # HEALTH CHECK
-# =========================================================
 async def get_db_health() -> Dict[str, Any]:
     try:
         if not _engine:
