@@ -59,10 +59,10 @@ async def init_db() -> None:
         async with _engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
 
-        logger.info("✅ Async database initialized successfully")
+        logger.info("Async database initialized successfully")
 
     except Exception as e:
-        logger.error(f"❌ Failed to initialize async DB: {e}")
+        logger.error(f"Failed to initialize async DB: {e}")
         raise
 
 
@@ -72,7 +72,7 @@ async def close_db() -> None:
 
     if _engine:
         await _engine.dispose()
-        logger.info("🛑 Async database connection closed")
+        logger.info("Async database connection closed")
 
 
 # ASYNC SESSION (FASTAPI)
